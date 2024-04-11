@@ -1,24 +1,52 @@
-# README
+# Project Name
 
-This README would normally document whatever steps are necessary to get the
-application up and running.
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Things you may want to cover:
+## Description
 
-* Ruby version
+This project is a Discord bot that allows users to play music and more.
 
-* System dependencies
+## Features
 
-* Configuration
+- Music playback: Play, pause, skip, and control music playback in a Discord voice channel.
+- Command handling: Handle various commands to interact with the bot.
+- Customizable settings: Configure the bot's behavior and settings.
 
-* Database creation
+## Installation
 
-* Database initialization
+1. Clone the repository:
 
-* How to run the test suite
+  ```bash
+  git clone git@github.com:Thiteago/bot-mae.git
+  ```
 
-* Services (job queues, cache servers, search engines, etc.)
+2. Install the dependencies:
 
-* Deployment instructions
+  ```bash
+  bundle install
+  ```
 
-* ...
+3. Configure the bot:
+
+  - Create a new Discord application and bot token.
+  - Copy the bot token and paste it in the `.env` file.
+  - Customize other settings if needed.
+
+4. Start the bot:
+
+  ```bash
+  rails s
+  ```
+
+## Usage
+
+- Invite the bot to your Discord server.
+- Use the bot commands to control music playback and interact with the bot.
+
+## Contributing
+
+Contributions are welcome! If you have any ideas or improvements, feel free to submit a pull request.
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
