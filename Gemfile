@@ -12,6 +12,7 @@ gem 'discordrb'
 gem 'dotenv-rails'
 gem 'opus-ruby'
 gem 'yt', '~> 0.32.0'
+gem 'rspotify'
 
 # Use sqlite3 as the database for Active Record
 gem 'pg', '>= 0.18', '< 2.0'
@@ -32,7 +33,8 @@ gem "stimulus-rails"
 gem "jbuilder"
 
 # Use Redis adapter to run Action Cable in production
-gem "redis", ">= 4.0.1"
+gem 'redis',                 '4.7.0' # 27 jun 2022
+gem 'redis-rails',           '5.0.2' # 4 abr 2022
 
 # Windows does not include zoneinfo files, so bundle the tzinfo-data gem
 gem "tzinfo-data", platforms: %i[ windows jruby ]
