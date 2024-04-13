@@ -7,7 +7,6 @@ class DiscordBot
 
   def initialize
     setup_apis
-    @stop_thread = false
 
     bot = Discordrb::Commands::CommandBot.new token: ENV.fetch('DISCORD_BOT_TOKEN'), client_id: ENV.fetch('DISCORD_BOT_CLIENT_ID'), prefix: '$'
     define_commands(bot)
@@ -20,9 +19,10 @@ class DiscordBot
       return "Faça me o favor de entrar em uma sala de áudio pra eu poder fazer alguma coisa." if event.author.voice_channel == nil
       result = nil
       requested_song = event.message.content.gsub('$toca ', '')
-
-      Rails.cache.write("#{event.server.id + event.author.id}_song_queue", []) if Rails.cache.read("#{event.server.id + event.author.id}_song_queue").nil?
-      find_songs(requested_song,event)
+      Rails.cache.fetch("#{event.server.id + event.author.id}_song_queue") do
+        []
+      end
+      find_songs(requested_song, event)
       user_queue = Rails.cache.read("#{event.server.id + event.author.id}_song_queue")
 
       if !user_queue.empty?
@@ -77,31 +77,13 @@ class DiscordBot
     sleep(1) if !user_queue.empty?
     puts "Queue: #{user_queue}"
     bot.voice_connect(event.author.voice_channel) if !bot.voice(event.server.id)
-    if !user_queue.empty?
+    if !user_queue.empty? && !bot.voice(event.server.id).isplaying?
       song = user_queue[0]
+      youtube_dl_command = "yt-dlp -q -o - #{is_youtube_link?(song[:id]) ? song : "https://www.youtube.com/watch?v=#{song[:id]}"} | ffmpeg -i pipe:0 -f s16le -ar 48000 -ac 2 pipe:1"
+      pipe = IO.popen(youtube_dl_command, 'r')
+      bot.voice(event.server.id).play(pipe)
+      user_queue.shift
       Rails.cache.write("#{event.server.id + event.author.id}_song_queue", user_queue)
-      begin
-        if !File.exist?("#{OUTPUT_FOLDER}/#{song[:path]}.mp3")
-          sleep(1)
-          if(!File.exist?("#{OUTPUT_FOLDER}/#{song[:path]}.mp3"))
-            user_queue.shift
-            Rails.cache.write("#{event.server.id + event.author.id}_song_queue", user_queue)
-            return recursive_queue_play(event, bot)
-          end
-        end
-
-        if !bot.voice(event.server.id).isplaying?
-          event.respond "Tocando `#{song[:title]}`"
-          event.voice.play_file("#{OUTPUT_FOLDER}/#{song[:path]}.mp3")
-          user_queue.pop
-          File.delete("#{OUTPUT_FOLDER}/#{song[:path]}.mp3")
-        end
-        recursive_queue_play(event, bot)
-      rescue
-        event.voice.stop_playing
-        return event.respond "Deu ruim, nao consegui tocar a música."
-      end
-      return if user_queue.empty? && !bot.voice(event.server.id).isplaying?
 
       recursive_queue_play(event, bot)
     end
@@ -136,19 +118,22 @@ class DiscordBot
       video = videos.where(q: song, order: 'relevance').first
       enqueue_song(video.id,video.title, user_id, server_id)
     elsif is_youtube_link
-      video = Yt::Video.new id: song.split('v=')[1]
+      if(song.include?('youtu.be'))
+        song_id = song.split('be/')[1]
+      else
+        song_id = song.split('v=')[1]
+      end
+      video = Yt::Video.new id: song_id
       enqueue_song(video.id,video.title, user_id, server_id)
     elsif is_spotify_link
       if is_spotify_playlist_link?(song)
         playlist = RSpotify::Playlist.find_by_id(song.split('playlist/')[1])
         tracks = playlist.tracks.map(&:name)
         download_thread = Thread.new do
-          while !@stop_thread do
-            tracks.each do |track|
-              videos = Yt::Collections::Videos.new
-              video = videos.where(q: track, order: 'relevance').first
-              enqueue_song(video.id,video.title, user_id, server_id)
-            end
+          tracks.each do |track|
+            videos = Yt::Collections::Videos.new
+            video = videos.where(q: track, order: 'relevance').first
+            enqueue_song(video.id,video.title, user_id, server_id)
           end
         end
       else
@@ -161,27 +146,33 @@ class DiscordBot
   def find_songs(song,event)
     original_queue_size = Rails.cache.read("#{event.server.id + event.author.id}_song_queue").size
     if is_youtube_link?(song)
-      search_song(song, event.author.id, event.server.id, true)
-      event.respond "Coloquei essa ai na lista patrão!" if Rails.cache.read("#{event.server.id + event.author.id}_song_queue").size > original_queue_size
+      result = search_song(song, event.author.id, event.server.id, true)
+      if !result.nil?
+        if Rails.cache.read("#{event.server.id + event.author.id}_song_queue").size > original_queue_size
+          event.respond "Coloquei essa ai na lista patrão!"
+        end
+      end
     elsif is_spotify_link?(song)
-      search_song(song, event.author.id, event.server.id, false, true)
-      event.respond "Coloquei essa ai na lista patrão!" if Rails.cache.read("#{event.server.id + event.author.id}_song_queue").size > original_queue_size
+      result = search_song(song, event.author.id, event.server.id, false, true)
+      if !result.nil?
+        if Rails.cache.read("#{event.server.id + event.author.id}_song_queue").size > original_queue_size
+          event.respond "Coloquei essa ai na lista patrão!"
+        end
+      end
     else
       song = event.message.content.gsub('$toca', "music")
-      search_song(song, event.author.id, event.server.id)
-      event.respond "Coloquei essa ai na lista patrão!" if Rails.cache.read("#{event.server.id + event.author.id}_song_queue").size > original_queue_size
+      result = search_song(song, event.author.id, event.server.id)
+      if !result.nil?
+        if Rails.cache.read("#{event.server.id + event.author.id}_song_queue").size > original_queue_size
+          event.respond "Coloquei essa ai na lista patrão!"
+        end
+      end
     end
-  end
-
-  def download_song(video_id, video_title, user_id, server_id)
-    random_number = Time.now.to_i
-    system("yt-dlp --extract-audio --audio-format mp3 -o '#{OUTPUT_FOLDER}/output_#{random_number}_#{user_id}_#{server_id}.mp3' https://www.youtube.com/watch?v=#{video_id}")
-    return {title: video_title, path: "output_#{random_number}_#{user_id}_#{server_id}"}
   end
 
   def enqueue_song(video_id, video_title, user_id, server_id)
     user_queue = Rails.cache.read("#{server_id + user_id}_song_queue")
-    user_queue << download_song(video_id, video_title, user_id, server_id)
+    user_queue << {id: video_id, title: video_title}
     Rails.cache.write("#{server_id + user_id}_song_queue", user_queue)
   end
 
