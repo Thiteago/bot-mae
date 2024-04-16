@@ -39,11 +39,7 @@ class DiscordBot
       user_queue = Rails.cache.read("#{event.server.id + event.author.id}_song_queue")
 
       if !user_queue.empty?
-        play_thread = Thread.new do
           recursive_queue_play(event, bot)
-        end
-        $running_threads << play_thread
-        play_thread.join
         ""
       elsif is_youtube_link?(requested_song) || is_spotify_link?(requested_song)
         "Esse link ai ta esquisito hein, compreendi nao."
@@ -86,8 +82,6 @@ class DiscordBot
       event.voice.stop_playing
       Rails.cache.write('stop_playing', true)
       clean_queue(event)
-      $running_threads.each(&:exit)
-      $running_threads.clear
       "To parando já, nao me enche, e também apaguei a fila!"
     end
 
@@ -102,6 +96,16 @@ class DiscordBot
       event.voice.play_file("lib/assets/sounds/tchau.mp3")
       bot.voice_destroy(event.server.id)
       "To saindo, mas se me chamar de novo eu nao volto!"
+    end
+
+    bot.command(:mistura) do |event|
+      return "Faça me o favor de entrar em uma sala de áudio pra eu poder fazer alguma coisa." if event.author.voice_channel == nil
+      user_queue = get_last_queue_cache(event)
+      while user_queue == user_queue do
+        user_queue.shuffle!
+      end
+      Rails.cache.write("#{event.server.id + event.author.id}_song_queue", user_queue)
+      "Prontinho, fila embaralhada!"
     end
 
     bot.command(:fila) do |event|

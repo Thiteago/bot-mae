@@ -1,4 +1,8 @@
+require_relative 'youtube_search_crawler'
+
 module DiscordBotHelpers
+  include YoutubeSearchCrawler
+
   def recursive_queue_play(event, bot)
     user_queue = get_last_queue_cache(event)
     bot.voice_connect(event.author.voice_channel) if !bot.voice(event.server.id)
@@ -44,38 +48,38 @@ module DiscordBotHelpers
   end
 
   def search_song(song, user_id, server_id, is_youtube_link = false, is_spotify_link = false)
+    video = nil
     if !is_youtube_link && !is_spotify_link
-      videos = Yt::Collections::Videos.new
-      video = videos.where(q: song, order: 'relevance').first
-      enqueue_song(video.id,video.title, user_id, server_id) if video
+      video = YoutubeSearchCrawler.search_video(song, true)
+      enqueue_song(video[:video_id], video[:title], user_id, server_id) if video
     elsif is_youtube_link
       if(song.include?('youtu.be'))
         song_id = song.split('be/')[1]
       else
         song_id = song.split('v=')[1]
       end
-      video = Yt::Video.new id: song_id
-      enqueue_song(video.id,video.title, user_id, server_id) if video
+      video_title = YoutubeSearchCrawler.get_video_title(song)
+      enqueue_song(song_id, video_title, user_id, server_id)
     elsif is_spotify_link
       if is_spotify_playlist_link?(song)
         playlist = RSpotify::Playlist.find_by_id(song.split('playlist/')[1])
         tracks = playlist.tracks.map do |track|
           {name: track.name, artist: track.artists.first.name}
         end
-        download_thread = Thread.new do
-          tracks.each do |track|
-            videos = Yt::Collections::Videos.new
-            video = videos.where(q: track[:name] + " " + track[:artist], order: 'relevance').first
-            puts video
-            enqueue_song(video.id,video.title, user_id, server_id) if video
-          end
+
+        if Rails.cache.read("#{server_id + user_id}_song_queue").empty?
+          video = YoutubeSearchCrawler.search_video(tracks[0][:name] + " " + tracks[0][:artist], true)
+          enqueue_song(video[:video_id], video[:title], user_id, server_id) if video
         end
-        download_thread.join
+        tracks.shift
+        Thread.new do
+          tracks = YoutubeSearchCrawler.search_video_by_playlist(tracks, user_id, server_id)
+        end
+
       else
         track = RSpotify::Track.find(song.split('track/')[1])
-        videos = Yt::Collections::Videos.new
-        video = videos.where(q: track.name, order: 'relevance').first
-        enqueue_song(video.id,video.title, user_id, server_id) if video
+        video = YoutubeSearchCrawler.search_video(track.name + " " + track.artists.first.name, true)
+        enqueue_song(video[:video_id],video[:title], user_id, server_id) if video
       end
     end
     return video
@@ -88,22 +92,22 @@ module DiscordBotHelpers
       result = search_song(song, event.author.id, event.server.id, true)
       if !result.nil?
         if Rails.cache.read("#{event.server.id + event.author.id}_song_queue").size > original_queue_size && original_queue_size > 0
-          event.respond "Coloquei `#{result.title}` na lista patrão!"
+          event.respond "Coloquei `#{result[:title]}` na lista patrão!"
         end
       end
     elsif is_spotify_link?(song)
       result = search_song(song, event.author.id, event.server.id, false, true)
       if !result.nil?
-        if Rails.cache.read("#{event.server.id + event.author.id}_song_queue").size > original_queue_size
-          event.respond "Coloquei essa ai na lista patrão!"
+        if Rails.cache.read("#{event.server.id + event.author.id}_song_queue").size > original_queue_size && original_queue_size > 0
+          event.respond "Coloquei `#{result[:title]}` na lista patrão!"
         end
       end
     else
       song = event.message.content.gsub('$toca', "music")
       result = search_song(song, event.author.id, event.server.id)
       if !result.nil?
-        if Rails.cache.read("#{event.server.id + event.author.id}_song_queue").size > original_queue_size
-          event.respond "Coloquei essa ai na lista patrão!"
+        if Rails.cache.read("#{event.server.id + event.author.id}_song_queue").size > original_queue_size && original_queue_size > 0
+          event.respond "Coloquei `#{result[:title]}` na lista patrão!"
         end
       end
     end
