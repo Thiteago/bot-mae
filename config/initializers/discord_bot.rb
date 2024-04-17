@@ -134,10 +134,6 @@ class DiscordBot
   end
 
   def setup_apis
-    Yt.configure do |config|
-      config.api_key = ENV.fetch('GOOGLE_API_KEY')
-    end
-
     RSpotify.authenticate(ENV.fetch('SPOTIFY_CLIENT_ID'), ENV.fetch('SPOTIFY_CLIENT_SECRET'))
   end
 end

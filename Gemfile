@@ -11,7 +11,6 @@ gem "sprockets-rails"
 gem 'discordrb'
 gem 'dotenv-rails'
 gem 'opus-ruby'
-gem 'yt', '~> 0.32.0'
 gem 'rspotify'
 gem 'puppeteer-ruby'
 
