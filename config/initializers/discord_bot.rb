@@ -1,6 +1,5 @@
 require 'discordrb'
 require 'rspotify'
-require 'yt'
 require_relative 'helpers/discord_bot_helpers'
 
 class DiscordBot
