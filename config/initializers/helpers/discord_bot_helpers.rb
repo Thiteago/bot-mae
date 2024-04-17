@@ -16,8 +16,8 @@ module DiscordBotHelpers
       shift_user_queue(event)
     end
     return Rails.cache.write('stop_playing', false) if Rails.cache.read('stop_playing')
-
-    recursive_queue_play(event, bot) if !get_last_queue_cache(event).empty?
+    return recursive_queue_play(event, bot) if !get_last_queue_cache(event).empty?
+    return
   end
 
   def is_youtube_link?(song)

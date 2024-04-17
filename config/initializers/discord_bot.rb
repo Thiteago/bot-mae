@@ -39,7 +39,9 @@ class DiscordBot
       user_queue = Rails.cache.read("#{event.server.id + event.author.id}_song_queue")
 
       if !user_queue.empty?
+        Thread.new do
           recursive_queue_play(event, bot)
+        end
         ""
       elsif is_youtube_link?(requested_song) || is_spotify_link?(requested_song)
         "Esse link ai ta esquisito hein, compreendi nao."
@@ -101,9 +103,7 @@ class DiscordBot
     bot.command(:mistura) do |event|
       return "Faça me o favor de entrar em uma sala de áudio pra eu poder fazer alguma coisa." if event.author.voice_channel == nil
       user_queue = get_last_queue_cache(event)
-      while user_queue == user_queue do
-        user_queue.shuffle!
-      end
+      user_queue.shuffle!
       Rails.cache.write("#{event.server.id + event.author.id}_song_queue", user_queue)
       "Prontinho, fila embaralhada!"
     end
