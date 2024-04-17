@@ -110,16 +110,11 @@ class DiscordBot
 
     bot.command(:fila) do |event|
       return "Faça me o favor de entrar em uma sala de áudio pra eu poder fazer alguma coisa." if event.author.voice_channel == nil
+      requested_page = event.message.content.gsub('$fila ', '')
+      requested_page = 1 if requested_page == "$fila"
       user_queue = get_last_queue_cache(event)
       return "Fila vazia, manda mais música ai!" if user_queue.empty?
-      embed = Discordrb::Webhooks::Embed.new
-      embed.title = "Fila de músicas"
-      embed.description = ""
-      user_queue.each_with_index do |song, index|
-        embed.description += "#{index + 1}. #{song[:title]}\n"
-      end
-      embed.color = 0x00ff00
-      embed.footer = Discordrb::Webhooks::EmbedFooter.new(text: "Toca aí, DJ!")
+      embed = create_queue_embed(user_queue, requested_page)
       event.channel.send_embed("", embed)
     end
 

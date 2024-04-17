@@ -124,4 +124,21 @@ module DiscordBotHelpers
     queue.nil? ? [] : queue
   end
 
+  def create_queue_embed(user_queue, requested_page=1)
+    embed = Discordrb::Webhooks::Embed.new
+    embed.title = "Fila de músicas - Página #{requested_page}"
+    embed.description = ""
+    page = requested_page.to_i
+    page = 1 if page == 0
+    start_index = (page - 1) * 10
+    end_index = start_index + 10
+    user_queue[start_index..end_index].each_with_index do |song, index|
+      link = is_youtube_link?(song[:id]) ? song : "https://www.youtube.com/watch?v=#{song[:id]}"
+      embed.description += "#{start_index + index + 1}. [#{song[:title]}](#{link})\n"
+    end
+    embed.color = 0xeb237d
+    embed.footer = Discordrb::Webhooks::EmbedFooter.new(text: "Página #{requested_page} de #{(user_queue.size / 10.0).ceil}")
+    embed
+  end
+
 end
