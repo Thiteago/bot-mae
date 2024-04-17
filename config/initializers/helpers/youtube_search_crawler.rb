@@ -1,5 +1,4 @@
 require 'puppeteer-ruby'
-require 'nokogiri'
 
 module YoutubeSearchCrawler
   def self.search_video(query, title = false)
