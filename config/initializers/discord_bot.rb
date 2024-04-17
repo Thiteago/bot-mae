@@ -38,9 +38,10 @@ class DiscordBot
       user_queue = Rails.cache.read("#{event.server.id + event.author.id}_song_queue")
 
       if !user_queue.empty?
-        Thread.new do
+        thread = Thread.new do
           recursive_queue_play(event, bot)
         end
+        $running_threads << thread
         ""
       elsif is_youtube_link?(requested_song) || is_spotify_link?(requested_song)
         "Esse link ai ta esquisito hein, compreendi nao."
@@ -94,6 +95,10 @@ class DiscordBot
 
     bot.command(:sai_daqui) do |event|
       return "Vem pra dentro da sala pra me tirar por gentileza " if event.author.voice_channel == nil
+      Rails.cache.write('stop_playing', true)
+      $running_threads.each do |thread|
+        thread.kill
+      end
       event.voice.play_file("lib/assets/sounds/tchau.mp3")
       bot.voice_destroy(event.server.id)
       "To saindo, mas se me chamar de novo eu nao volto!"

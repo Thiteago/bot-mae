@@ -13,7 +13,7 @@ module DiscordBotHelpers
 
       event.respond "Tocando `#{song[:title]}`"
       bot.voice(event.server.id).play(pipe)
-      shift_user_queue(event)
+      shift_user_queue(event) if !Rails.cache.read('stop_playing')
     end
     return Rails.cache.write('stop_playing', false) if Rails.cache.read('stop_playing')
     return recursive_queue_play(event, bot) if !get_last_queue_cache(event).empty?
