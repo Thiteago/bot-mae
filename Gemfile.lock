@@ -279,6 +279,11 @@ GEM
       rexml (~> 3.2, >= 3.2.5)
       rubyzip (>= 1.2.2, < 3.0)
       websocket (~> 1.0)
+    sidekiq (6.0.4)
+      connection_pool (>= 2.2.2)
+      rack (>= 2.0.0)
+      rack-protection (>= 2.0.0)
+      redis (>= 4.1.0)
     sprockets (4.2.1)
       concurrent-ruby (~> 1.0)
       rack (>= 2.2.4, < 4)
@@ -313,8 +318,6 @@ GEM
     websocket-extensions (0.1.5)
     xpath (3.2.0)
       nokogiri (~> 1.8)
-    yt (0.32.6)
-      activesupport
     zeitwerk (2.6.13)
 
 PLATFORMS
@@ -338,12 +341,12 @@ DEPENDENCIES
   redis-rails (= 5.0.2)
   rspotify
   selenium-webdriver
+  sidekiq (~> 6.0.0)
   sprockets-rails
   stimulus-rails
   turbo-rails
   tzinfo-data
   web-console
-  yt (~> 0.32.0)
 
 RUBY VERSION
    ruby 3.1.3p185

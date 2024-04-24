@@ -13,6 +13,7 @@ gem 'dotenv-rails'
 gem 'opus-ruby'
 gem 'rspotify'
 gem 'puppeteer-ruby'
+gem 'sidekiq', '~>6.0.0'
 
 # Use sqlite3 as the database for Active Record
 gem 'pg', '>= 0.18', '< 2.0'
