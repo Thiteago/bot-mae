@@ -38,11 +38,14 @@ module DiscordBot
             next
           end
           page.goto("https://www.youtube.com/results?search_query=#{format_query("#{track[:name]} #{track[:artist]}")}")
-          #try to find the first video 3 times
           first_video = page.query_selector("ytd-video-renderer ytd-thumbnail #thumbnail")
           sleep 1
           page.screenshot(path: "tmp/screenshotee.png")
-          video_url = first_video.evaluate('(element) => element.href')
+          begin
+            video_url = first_video.evaluate('(element) => element.href')
+          rescue
+            next
+          end
           title = page.query_selector('ytd-video-renderer #meta #title-wrapper #video-title yt-formatted-string').evaluate('(element) => element.textContent')
           cached_data = {
             video_id: self.get_video_id(video_url),
