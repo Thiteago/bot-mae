@@ -7,9 +7,8 @@ module DiscordBot
       bot.voice_connect(event.author.voice_channel) if !bot.voice(event.server.id)
       if !user_queue.empty? && !bot.voice(event.server.id).isplaying?
         song = user_queue[0]
-        youtube_dl_command = "yt-dlp -q -o - #{self.is_youtube_link?(song[:id]) ? song : "https://www.youtube.com/watch?v=#{song[:id]}"} | ffmpeg -i pipe:0 -f s16le -ar 48000 -ac 2 pipe:1"
+        youtube_dl_command = "yt-dlp -q -o - #{self.is_youtube_link?(song[:id]) ? song : "https://www.youtube.com/watch?v=#{song[:id]}"} | ffmpeg -i pipe:0 -f s16le -ar 48000 -ac 2 pipe:1 2>/dev/null"
         pipe = IO.popen(youtube_dl_command, 'r')
-
         event.respond "Tocando `#{song[:title]}`"
         bot.voice(event.server.id).play(pipe)
         self.shift_user_queue(event) if !Rails.cache.read('stop_playing')
@@ -61,20 +60,28 @@ module DiscordBot
         self.enqueue_song(song_id, video_title, user_id, server_id)
       elsif is_spotify_link
         if self.is_spotify_playlist_link?(song)
-          playlist = RSpotify::Playlist.find_by_id(song.split('playlist/')[1])
-          tracks = playlist.tracks.map do |track|
-            {name: track.name, artist: track.artists.first.name}
-          end
+          playlist_id = song.split('playlist/')[1].split('?')[0]
+          playlist = RSpotify::Playlist.find_by_id(playlist_id)
 
+          playlist_length = playlist.total
+          limit = 100
+          offset = 0
           if Rails.cache.read("#{server_id + user_id}_song_queue").empty?
-            video = DiscordBot::YoutubeSearchCrawler.search_video(tracks[0][:name] + " " + tracks[0][:artist], true)
+            video = DiscordBot::YoutubeSearchCrawler.search_video(playlist.tracks[0].name + " " + playlist.tracks[0].artists[0].name, true)
             self.enqueue_song(video[:video_id], video[:title], user_id, server_id) if video
-          end
-          tracks.shift
-          Thread.new do
-            tracks = DiscordBot::YoutubeSearchCrawler.search_video_by_playlist(tracks, user_id, server_id)
+            playlist.tracks.shift
           end
 
+          while offset < playlist_length
+            remaining = playlist_length - offset
+            current_limit = [limit, remaining].min
+
+            tracks = playlist.tracks(limit: current_limit, offset: offset)
+            tracks = tracks.map { |track| { name: track.name, artist: track.artists[0].name } }
+            SearchVideoByPlaylistJob.perform_now(tracks, user_id, server_id)
+
+            offset += current_limit
+          end
         else
           track = RSpotify::Track.find(song.split('track/')[1])
           video = DiscordBot::YoutubeSearchCrawler.search_video(track.name + " " + track.artists.first.name, true)
