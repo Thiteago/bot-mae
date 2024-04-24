@@ -4,18 +4,21 @@ module DiscordBot
       bot.command(:toca) do |event|
         return "Faça me o favor de entrar em uma sala de áudio pra eu poder fazer alguma coisa." if event.author.voice_channel == nil
         requested_song = event.message.content.gsub('$toca ', '')
+        queue = Rails.cache.read("#{event.server.id + event.author.id}_song_queue")
 
-        if(requested_song == "" || requested_song == "$toca" && Rails.cache.read("#{event.server.id + event.author.id}_song_queue").empty?)
+        if queue.nil?
+          queue = Rails.cache.fetch("#{event.server.id + event.author.id}_song_queue") do
+            []
+          end
+        end
+
+        if(requested_song == "" || requested_song == "$toca" && queue.empty?)
           return "Voce precisa me dizer qual música quer ouvir, nao sou adivinho!"
-        elsif requested_song == "" || requested_song == "$toca" && !Rails.cache.read("#{event.server.id + event.author.id}_song_queue").empty?
+        elsif requested_song == "" || requested_song == "$toca" && !queue.empty?
           event.respond "Vorteno a tocar!"
           bot.voice_connect(event.author.voice_channel)
           bot.voice(event.server.id).playing? ? event.voice.continue : DiscordBot::Helpers.recursive_queue_play(event, bot)
           return ""
-        end
-
-        Rails.cache.fetch("#{event.server.id + event.author.id}_song_queue") do
-          []
         end
 
         DiscordBot::Helpers.find_songs(requested_song, event)
