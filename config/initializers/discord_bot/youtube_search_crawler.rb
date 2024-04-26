@@ -83,9 +83,9 @@ module DiscordBot
     end
 
     def self.enqueue_song(video_id, video_title, user_id, server_id)
-      user_queue = Rails.cache.read("#{server_id + user_id}_song_queue")
+      user_queue = Rails.cache.read("#{server_id}_song_queue")
       user_queue << {id: video_id, title: video_title}
-      Rails.cache.write("#{server_id + user_id}_song_queue", user_queue)
+      Rails.cache.write("#{server_id}_song_queue", user_queue)
     end
   end
 end

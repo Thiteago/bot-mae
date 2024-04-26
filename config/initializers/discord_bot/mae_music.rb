@@ -4,10 +4,10 @@ module DiscordBot
       bot.command(:toca) do |event|
         return "Faça me o favor de entrar em uma sala de áudio pra eu poder fazer alguma coisa." if event.author.voice_channel == nil
         requested_song = event.message.content.gsub('$toca ', '')
-        queue = Rails.cache.read("#{event.server.id + event.author.id}_song_queue")
+        queue = Rails.cache.read("#{event.server.id}_song_queue")
 
         if queue.nil?
-          queue = Rails.cache.fetch("#{event.server.id + event.author.id}_song_queue") do
+          queue = Rails.cache.fetch("#{event.server.id}_song_queue") do
             []
           end
         end
@@ -22,7 +22,7 @@ module DiscordBot
         end
 
         DiscordBot::Helpers.find_songs(requested_song, event)
-        user_queue = Rails.cache.read("#{event.server.id + event.author.id}_song_queue")
+        user_queue = Rails.cache.read("#{event.server.id}_song_queue")
 
         if !user_queue.empty?
           thread = Thread.new do
@@ -61,7 +61,7 @@ module DiscordBot
         return "Faça me o favor de entrar em uma sala de áudio pra eu poder fazer alguma coisa." if event.author.voice_channel == nil
         user_queue = DiscordBot::Helpers.get_last_queue_cache(event)
         user_queue.shuffle!
-        Rails.cache.write("#{event.server.id + event.author.id}_song_queue", user_queue)
+        Rails.cache.write("#{event.server.id}_song_queue", user_queue)
         "Prontinho, fila embaralhada!"
       end
 

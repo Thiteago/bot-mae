@@ -26,12 +26,12 @@ module DiscordBot
     def self.shift_user_queue(event)
       user_queue = self.get_last_queue_cache(event)
       user_queue.shift
-      Rails.cache.write("#{event.server.id + event.author.id}_song_queue", user_queue)
+      Rails.cache.write("#{event.server.id}_song_queue", user_queue)
     end
 
     def self.clean_queue(event)
-      user_queue = Rails.cache.read("#{event.server.id + event.author.id}_song_queue")
-      Rails.cache.write("#{event.server.id + event.author.id}_song_queue", [])
+      user_queue = Rails.cache.read("#{event.server.id}_song_queue")
+      Rails.cache.write("#{event.server.id}_song_queue", [])
     end
 
     def self.is_spotify_link?(song)
@@ -66,7 +66,7 @@ module DiscordBot
           playlist_length = playlist.total
           limit = 100
           offset = 0
-          if Rails.cache.read("#{server_id + user_id}_song_queue").empty?
+          if Rails.cache.read("#{server_id}_song_queue").empty?
             video = DiscordBot::YoutubeSearchCrawler.search_video(playlist.tracks[0].name + " " + playlist.tracks[0].artists[0].name, true)
             self.enqueue_song(video[:video_id], video[:title], user_id, server_id) if video
             playlist.tracks.shift
@@ -93,18 +93,18 @@ module DiscordBot
 
     def self.find_songs(song,event)
       result = nil
-      original_queue_size = Rails.cache.read("#{event.server.id + event.author.id}_song_queue").size
+      original_queue_size = Rails.cache.read("#{event.server.id}_song_queue").size
       if self.is_youtube_link?(song)
         result = self.search_song(song, event.author.id, event.server.id, true)
         if !result.nil?
-          if Rails.cache.read("#{event.server.id + event.author.id}_song_queue").size > original_queue_size && original_queue_size > 0
+          if Rails.cache.read("#{event.server.id}_song_queue").size > original_queue_size && original_queue_size > 0
             event.respond "Coloquei `#{result[:title]}` na lista patrão!"
           end
         end
       elsif is_spotify_link?(song)
         result = self.search_song(song, event.author.id, event.server.id, false, true)
         if !result.nil?
-          if Rails.cache.read("#{event.server.id + event.author.id}_song_queue").size > original_queue_size && original_queue_size > 0
+          if Rails.cache.read("#{event.server.id}_song_queue").size > original_queue_size && original_queue_size > 0
             event.respond "Coloquei `#{result[:title]}` na lista patrão!"
           end
         end
@@ -112,7 +112,7 @@ module DiscordBot
         song = event.message.content.gsub('$toca', "music")
         result = self.search_song(song, event.author.id, event.server.id)
         if !result.nil?
-          if Rails.cache.read("#{event.server.id + event.author.id}_song_queue").size > original_queue_size && original_queue_size > 0
+          if Rails.cache.read("#{event.server.id}_song_queue").size > original_queue_size && original_queue_size > 0
             event.respond "Coloquei `#{result[:title]}` na lista patrão!"
           end
         end
@@ -120,13 +120,13 @@ module DiscordBot
     end
 
     def self.enqueue_song(video_id, video_title, user_id, server_id)
-      user_queue = Rails.cache.read("#{server_id + user_id}_song_queue")
+      user_queue = Rails.cache.read("#{server_id}_song_queue")
       user_queue << {id: video_id, title: video_title}
-      Rails.cache.write("#{server_id + user_id}_song_queue", user_queue)
+      Rails.cache.write("#{server_id}_song_queue", user_queue)
     end
 
     def self.get_last_queue_cache(event)
-      queue = Rails.cache.read("#{event.server.id + event.author.id}_song_queue")
+      queue = Rails.cache.read("#{event.server.id}_song_queue")
       queue.nil? ? [] : queue
     end
 
