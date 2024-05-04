@@ -14,6 +14,7 @@ gem 'opus-ruby'
 gem 'rspotify'
 gem 'puppeteer-ruby'
 gem 'sidekiq', '~>6.0.0'
+gem 'ollama-ai', '~> 1.2.1'
 
 # Use sqlite3 as the database for Active Record
 gem 'pg', '>= 0.18', '< 2.0'

@@ -1,6 +1,7 @@
 require 'discordrb'
 require 'rspotify'
 require_relative 'mae_music'
+require_relative 'mae_talk'
 
 module DiscordBot
   class Bot
@@ -13,6 +14,7 @@ module DiscordBot
       bot = Discordrb::Commands::CommandBot.new token: ENV.fetch('DISCORD_BOT_TOKEN'), client_id: ENV.fetch('DISCORD_BOT_CLIENT_ID'), prefix: '$'
       define_commands(bot)
       DiscordBot::MaeMusic.commands(bot)
+      DiscordBot::MaeTalk.commands(bot)
       bot_thread = Thread.new { bot.run }
     end
 
