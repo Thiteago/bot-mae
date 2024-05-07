@@ -3,37 +3,29 @@ module DiscordBot
     def self.commands(bot)
       bot.command(:toca) do |event|
         return "Faça me o favor de entrar em uma sala de áudio pra eu poder fazer alguma coisa." if event.author.voice_channel == nil
-        requested_song = event.message.content.gsub('$toca ', '')
-        queue = Rails.cache.read("#{event.server.id}_song_queue")
+        helper = DiscordBot::Helpers.new(
+          user_id: event.author.id,
+          server_id: event.server.id,
+          voice_channel_id: event.author.voice_channel.id,
+          requested_song: event.message.content.gsub('$toca ', ''),
+          user_queue: "#{event.server.id}_#{event.author.voice_channel.id}_server_queue",
+          event: event,
+          bot: bot,
+        )
 
-        if queue.nil?
-          queue = Rails.cache.fetch("#{event.server.id}_song_queue") do
-            []
-          end
-        end
+        user_queue = self.initialize_queue(helper.details[:server_id], helper.details[:voice_channel_id])
+        self.resume_playing(helper, event, bot)
 
-        if(requested_song == "" || requested_song == "$toca" && queue.empty?)
-          return "Voce precisa me dizer qual música quer ouvir, nao sou adivinho!"
-        elsif requested_song == "" || requested_song == "$toca" && !queue.empty?
-          event.respond "Vorteno a tocar!"
-          bot.voice_connect(event.author.voice_channel)
-          bot.voice(event.server.id).playing? ? event.voice.continue : DiscordBot::Helpers.recursive_queue_play(event, bot)
-          return ""
-        end
+        helper.find_songs
+        queue = Rails.cache.read(helper.details[:user_queue])
 
-        DiscordBot::Helpers.find_songs(requested_song, event)
-        user_queue = Rails.cache.read("#{event.server.id}_song_queue")
-
-        if !user_queue.empty?
-          thread = Thread.new do
-            DiscordBot::Helpers.recursive_queue_play(event, bot)
-          end
-          $running_threads << thread
+        if !queue.empty?
+          helper.recursive_queue_play
           ""
-        elsif DiscordBot::Helpers.is_youtube_link?(requested_song) || DiscordBot::Helpers.is_spotify_link?(requested_song)
+        elsif helper.details[:platform] == 'not_identified'
           "Esse link ai ta esquisito hein, compreendi nao."
         else
-          "Não encontrei esse negócio não, voce disse `#{requested_song}` mesmo?"
+          "Não encontrei esse negócio não, voce disse `#{helper.details[:requested_song]}` mesmo?"
         end
       end
 
@@ -46,7 +38,7 @@ module DiscordBot
       bot.command(:para_de_toca) do |event|
         return "Faça me o favor de entrar em uma sala de áudio pra eu poder fazer alguma coisa." if event.author.voice_channel == nil
         event.voice.stop_playing
-        Rails.cache.write('stop_playing', true)
+        Rails.cache.write("stop_playing_#{event.server.id}_#{event.author.voice_channel.id}", true)
         DiscordBot::Helpers.clean_queue(event)
         "To parando já, nao me enche, e também apaguei a fila!"
       end
@@ -59,9 +51,9 @@ module DiscordBot
 
       bot.command(:mistura) do |event|
         return "Faça me o favor de entrar em uma sala de áudio pra eu poder fazer alguma coisa." if event.author.voice_channel == nil
-        user_queue = DiscordBot::Helpers.get_last_queue_cache(event)
+        user_queue = Rails.cache.read("#{event.server.id}_#{event.author.voice_channel.id}_server_queue")
         user_queue.shuffle!
-        Rails.cache.write("#{event.server.id}_song_queue", user_queue)
+        Rails.cache.write("#{event.server.id}_#{event.author.voice_channel.id}_server_queue", user_queue)
         "Prontinho, fila embaralhada!"
       end
 
@@ -69,21 +61,58 @@ module DiscordBot
         return "Faça me o favor de entrar em uma sala de áudio pra eu poder fazer alguma coisa." if event.author.voice_channel == nil
         requested_page = event.message.content.gsub('$fila ', '')
         requested_page = 1 if requested_page == "$fila"
-        user_queue = DiscordBot::Helpers.get_last_queue_cache(event)
+        user_queue = Rails.cache.read("#{event.server.id}_#{event.author.voice_channel.id}_server_queue")
         return "Fila vazia, manda mais música ai!" if user_queue.empty?
-        embed = DiscordBot::Helpers.create_queue_embed(user_queue, requested_page)
+        helper = DiscordBot::Helpers.new(
+          user_id: event.author.id,
+          server_id: event.server.id,
+          voice_channel_id: event.author.voice_channel.id,
+          requested_song: event.message.content.gsub('$toca ', ''),
+          user_queue: "#{event.server.id}_#{event.author.voice_channel.id}_server_queue",
+          event: event,
+          bot: bot,
+        )
+        embed = helper.create_queue_embed(user_queue, requested_page)
         event.channel.send_embed("", embed)
       end
 
       bot.command(:pula) do |event|
         return "Faça me o favor de entrar em uma sala de áudio pra eu poder fazer alguma coisa." if event.author.voice_channel == nil
         event.voice.stop_playing
-        if !DiscordBot::Helpers.get_last_queue_cache(event).empty? && DiscordBot::Helpers.get_last_queue_cache(event).size > 1
+        if !Rails.cache.read("#{event.server.id}_#{event.author.voice_channel.id}_server_queue").empty? && Rails.cache.read("#{event.server.id}_#{event.author.voice_channel.id}_server_queue").size > 1
           "Pulando a música atual!"
         else
           "Não tem mais música pra tocar, então não tem o que pular, vou é parar 🦥."
         end
       end
     end
+
+  private
+    def self.initialize_queue(server_id, voice_channel_id)
+      queue = Rails.cache.read("#{server_id}_#{voice_channel_id}_server_queue")
+
+      if queue.nil?
+        queue = Rails.cache.fetch("#{server_id}_#{voice_channel_id}_server_queue") do
+          []
+        end
+      end
+      queue
+    end
+
+    def self.resume_playing(helper, event, bot)
+      queue = Rails.cache.read(helper.details[:user_queue])
+      if(helper.details[:requested_song] == "" || helper.details[:requested_song] == "$toca" && queue.empty?)
+        return "Voce precisa me dizer qual música quer ouvir, nao sou adivinho!"
+      elsif helper.details[:requested_song] == "" || helper.details[:requested_song] == "$toca" && !queue.empty?
+        event.respond "Vorteno a tocar!"
+        if(bot.voices.key?(event.server.id))
+          event.voice.continue
+        else
+          helper.recursive_queue_play
+        end
+        return ""
+      end
+    end
+
   end
 end
