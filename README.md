@@ -4,44 +4,47 @@
 
 ## Description
 
-This project is a Discord bot that allows users to play music and more.
+Bot de Discord (Ruby puro, sem framework web) que toca música em canais de voz: busca no YouTube, playlists/álbuns/faixas do Spotify, fila por canal de voz, pular/pausar/embaralhar.
 
-## Features
+## Rodando com Docker (recomendado)
 
-- Music playback: Play, pause, skip, and control music playback in a Discord voice channel.
-- Command handling: Handle various commands to interact with the bot.
-- Customizable settings: Configure the bot's behavior and settings.
+1. Copie `.env.example` para `.env` e preencha:
+   - `DISCORD_BOT_TOKEN` / `DISCORD_BOT_CLIENT_ID`: criados em https://discord.com/developers/applications
+   - `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET`: criados em https://developer.spotify.com/dashboard
+   - `YOUTUBE_API_KEY`: crie um projeto em https://console.cloud.google.com, ative a "YouTube Data API v3" e gere uma API key. A cota gratuita padrão é 10.000 unidades/dia (cada busca custa 100, ~100 buscas/dia de graça — suficiente pra uso pessoal).
+2. Suba tudo:
 
-## Installation
+   ```bash
+   docker compose up --build
+   ```
 
-1. Clone the repository:
+   Isso inicia três serviços: `redis` (fila/estado), `bot` (conexão com o Discord) e `worker` (Sidekiq, processa playlists do Spotify em background).
 
-  ```bash
-  git clone git@github.com:Thiteago/bot-mae.git
-  ```
+3. Convide o bot pro seu servidor usando o comando `$convite` (ou monte o link manualmente com o `DISCORD_BOT_CLIENT_ID`).
 
-2. Install the dependencies:
+## Rodando sem Docker
 
-  ```bash
-  bundle install
-  ```
+Requer Ruby 3.4.1 (ver `.ruby-version`), Redis rodando localmente, e os binários `ffmpeg` e `yt-dlp` no PATH.
 
-3. Configure the bot:
+```bash
+bundle install
+bin/bot      # processo do bot (conecta no Discord)
+bin/worker   # processo do Sidekiq, em outro terminal
+```
 
-  - Create a new Discord application and bot token.
-  - Copy the bot token and paste it in the `.env` file.
-  - Customize other settings if needed.
+## Comandos
 
-4. Start the bot:
-
-  ```bash
-  rails s
-  ```
-
-## Usage
-
-- Invite the bot to your Discord server.
-- Use the bot commands to control music playback and interact with the bot.
+- `$toca <nome ou link>`: toca uma música (aceita nome pra buscar no YouTube, link do YouTube, ou link de faixa/álbum/playlist do Spotify).
+- `$toca`: retoma a música pausada ou a próxima da fila.
+- `$pausa_pofavo`: pausa a música atual.
+- `$para_de_toca`: para de tocar e limpa a fila.
+- `$pula`: pula a música atual.
+- `$fila`: mostra a fila de músicas.
+- `$mistura`: embaralha a fila.
+- `$limpa_fila`: limpa a fila sem parar a música atual.
+- `$sai_daqui`: o bot sai do canal de voz.
+- `$convite`: link de convite do bot.
+- `$ajuda`: lista de comandos.
 
 ## Contributing
 

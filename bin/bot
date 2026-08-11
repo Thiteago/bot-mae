@@ -1,0 +1,8 @@
+#!/usr/bin/env ruby
+require "bundler/setup"
+require_relative "../lib/bot_mae/boot"
+require_relative "../lib/bot_mae/bot"
+
+Discordrb::LOGGER.mode = :debug if ENV["DISCORDRB_DEBUG"]
+
+DiscordBot::Bot.new.run
