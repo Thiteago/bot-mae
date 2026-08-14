@@ -13,3 +13,6 @@
 
 # Ignore vendored gems installed via bundle.
 /vendor/bundle
+
+# Ignore yt-dlp cookies file (see README, contém sessão logada do YouTube).
+/cookies.txt

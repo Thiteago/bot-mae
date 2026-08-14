@@ -9,6 +9,7 @@ gem "rspotify"
 gem "sidekiq", "~> 7.3"
 gem "redis", "~> 5.3"
 gem "connection_pool", "~> 2.4" # sidekiq 7.3 is incompatible with connection_pool 3.x
+gem "webrick", "~> 1.8" # não é mais default gem no Ruby 3.4+, usado pro servidor de webhooks do Seerr
 
 group :development, :test do
   gem "debug", platforms: %i[mri windows]

@@ -1,3 +1,5 @@
+require 'set'
+require 'shellwords'
 require_relative 'youtube_search_crawler'
 require_relative 'jobs/search_video_by_playlist_job'
 
@@ -10,6 +12,26 @@ SPOTIFY_ALBUM = /^(http(s)?:\/\/)?((w){3}.)?open.spotify.com\/album\/.+/i
 module DiscordBot
   class Helpers
     attr_accessor :details
+
+    @active_playback_channels = Set.new
+    @active_playback_mutex = Mutex.new
+
+    class << self
+      attr_reader :active_playback_channels, :active_playback_mutex
+    end
+
+    def self.claim_playback_channel(channel_key)
+      active_playback_mutex.synchronize do
+        return false if active_playback_channels.include?(channel_key)
+
+        active_playback_channels << channel_key
+        true
+      end
+    end
+
+    def self.release_playback_channel(channel_key)
+      active_playback_mutex.synchronize { active_playback_channels.delete(channel_key) }
+    end
 
     def initialize(user_id:, server_id:, voice_channel_id:, requested_song:, user_queue:, event:, bot:)
       @details = {
@@ -29,29 +51,43 @@ module DiscordBot
     end
 
     def recursive_queue_play
-      @details[:bot].voice_connect(@details[:voice_channel_id]) if !@details[:bot].voice(@details[:server_id])
+      channel_key = "#{@details[:server_id]}_#{@details[:voice_channel_id]}"
+      return unless self.class.claim_playback_channel(channel_key)
 
-      loop do
-        user_queue = DiscordBot::RedisCache.read(@details[:user_queue])
+      begin
+        @details[:bot].voice_connect(@details[:voice_channel_id]) if !@details[:bot].voice(@details[:server_id])
 
-        if !user_queue.empty? && !@details[:bot].voice(@details[:server_id]).isplaying?
-          song = user_queue[0]
-          youtube_dl_command = "yt-dlp -q -o - #{is_youtube_link?(song[:id]) ? song[:id] : "https://www.youtube.com/watch?v=#{song[:id]}"} | ffmpeg -i pipe:0 -f s16le -ar 48000 -ac 2 pipe:1 2>/dev/null"
-          pipe = IO.popen(youtube_dl_command, 'r')
-          @details[:event].respond "Tocando `#{song[:title]}`"
-          @details[:bot].voice(@details[:server_id]).play(pipe)
-          shift_queue if !DiscordBot::RedisCache.read("stop_playing_#{@details[:server_id]}_#{@details[:voice_channel_id]}")
+        loop do
+          user_queue = DiscordBot::RedisCache.read(@details[:user_queue])
+
+          if !user_queue.empty? && !@details[:bot].voice(@details[:server_id]).isplaying?
+            song = user_queue[0]
+            youtube_dl_command = "yt-dlp -q#{ytdlp_cookies_option} -o - #{is_youtube_link?(song[:id]) ? song[:id] : "https://www.youtube.com/watch?v=#{song[:id]}"} | ffmpeg -i pipe:0 -f s16le -ar 48000 -ac 2 pipe:1 2>/dev/null"
+            pipe = IO.popen(youtube_dl_command, 'r')
+            @details[:event].respond "Tocando `#{song[:title]}`"
+            @details[:bot].voice(@details[:server_id]).play(pipe)
+            shift_queue if !DiscordBot::RedisCache.read("stop_playing_#{@details[:server_id]}_#{@details[:voice_channel_id]}")
+          end
+
+          if has_been_stop_requested?
+            DiscordBot::RedisCache.write("stop_playing_#{@details[:server_id]}_#{@details[:voice_channel_id]}", false)
+            return
+          end
+
+          return if user_queue.empty?
+
+          sleep 0.5
         end
-
-        if has_been_stop_requested?
-          DiscordBot::RedisCache.write("stop_playing_#{@details[:server_id]}_#{@details[:voice_channel_id]}", false)
-          return
-        end
-
-        return if user_queue.empty?
-
-        sleep 0.5
+      ensure
+        self.class.release_playback_channel(channel_key)
       end
+    end
+
+    def ytdlp_cookies_option
+      cookies_file = ENV['YTDLP_COOKIES_FILE']
+      return '' if cookies_file.nil? || cookies_file.empty? || !File.exist?(cookies_file)
+
+      " --cookies #{Shellwords.escape(cookies_file)}"
     end
 
     def has_been_stop_requested?

@@ -133,6 +133,7 @@ GEM
     tsort (0.2.0)
     uri (1.1.1)
     version_gem (1.1.15)
+    webrick (1.9.2)
     websocket (1.2.11)
     websocket-client-simple (0.9.0)
       base64
@@ -158,6 +159,7 @@ DEPENDENCIES
   redis (~> 5.3)
   rspotify
   sidekiq (~> 7.3)
+  webrick (~> 1.8)
 
 CHECKSUMS
   addressable (2.8.10) sha256=ca28562ee7bedb1b717f6f004358ae0e476b0f75eedb197159bd9582255a340c
@@ -217,6 +219,7 @@ CHECKSUMS
   tsort (0.2.0) sha256=9650a793f6859a43b6641671278f79cfead60ac714148aabe4e3f0060480089f
   uri (1.1.1) sha256=379fa58d27ffb1387eaada68c749d1426738bd0f654d812fcc07e7568f5c57c6
   version_gem (1.1.15) sha256=a73241587b29252e3567e0c818ded80730eb754d43b508f6ce4db22ca9ba27d0
+  webrick (1.9.2) sha256=beb4a15fc474defed24a3bda4ffd88a490d517c9e4e6118c3edce59e45864131
   websocket (1.2.11) sha256=b7e7a74e2410b5e85c25858b26b3322f29161e300935f70a0e0d3c35e0462737
   websocket-client-simple (0.9.0) sha256=f9a37c5e4922b35a711e21e6d73ed1e25892efa47d183203ab2f5beb4e563109
 

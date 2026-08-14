@@ -12,8 +12,18 @@ services:
     env_file: .env
     environment:
       REDIS_URL: redis://redis:6379/1
+      YTDLP_COOKIES_FILE: /app/cookies.txt
+    ports:
+      - "${SEER_WEBHOOK_PORT:-8090}:${SEER_WEBHOOK_PORT:-8090}"
+    volumes:
+      - ./cookies.txt:/app/cookies.txt
     depends_on:
       - redis
+    networks:
+      default: {}
+      seer_default:
+        aliases:
+          - bot-mae-webhook
 
   worker:
     build: .
@@ -22,8 +32,16 @@ services:
     env_file: .env
     environment:
       REDIS_URL: redis://redis:6379/1
+      YTDLP_COOKIES_FILE: /app/cookies.txt
+    volumes:
+      - ./cookies.txt:/app/cookies.txt
     depends_on:
       - redis
 
 volumes:
   redis-data:
+
+networks:
+  default:
+  seer_default:
+    external: true
