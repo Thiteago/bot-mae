@@ -1,4 +1,0 @@
-#!/usr/bin/env bash
-set -euo pipefail
-cd "$(dirname "$0")/.."
-exec bundle exec sidekiq -r ./lib/bot_mae/boot.rb -r ./lib/bot_mae/jobs/search_video_by_playlist_job.rb -q search -c "${SIDEKIQ_CONCURRENCY:-5}"

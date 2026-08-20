@@ -50,14 +50,13 @@ module DiscordBot
     def process_notification(payload)
       return unless NOTIFICATION_TYPES.include?(payload['notification_type'])
 
-      discord_ids = Array(payload.dig('request', 'requestedBy_settings_discordIds'))
-      if discord_ids.empty?
-        log("Notificação #{payload['notification_type']} ignorada: requestedBy_settings_discordIds vazio (usuário não cadastrou o Discord ID no Seerr)")
+      discord_id = payload.dig('request', 'requestedBy_settings_discordId')
+      if discord_id.nil? || discord_id.empty?
+        log("Notificação #{payload['notification_type']} ignorada: requestedBy_settings_discordId vazio (usuário não cadastrou o Discord ID no Seerr)")
         return
       end
 
-      embed = build_embed(payload)
-      discord_ids.each { |discord_id| send_dm(discord_id, embed) }
+      send_dm(discord_id, build_embed(payload))
     end
 
     def send_dm(discord_id, embed)

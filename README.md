@@ -4,44 +4,27 @@
 
 ## Description
 
-Bot de Discord (Ruby puro, sem framework web) que toca música em canais de voz: busca no YouTube, playlists/álbuns/faixas do Spotify, fila por canal de voz, pular/pausar/embaralhar.
+Bot de Discord (Ruby puro, sem framework web) que manda DM avisando quando um pedido de mídia no [Seerr](https://github.com/seerr-team/seerr) é aprovado ou fica disponível.
 
 ## Rodando com Docker (recomendado)
 
-1. Copie `.env.example` para `.env` e preencha:
-   - `DISCORD_BOT_TOKEN` / `DISCORD_BOT_CLIENT_ID`: criados em https://discord.com/developers/applications
-   - `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET`: criados em https://developer.spotify.com/dashboard
-   - `YOUTUBE_API_KEY`: crie um projeto em https://console.cloud.google.com, ative a "YouTube Data API v3" e gere uma API key. A cota gratuita padrão é 10.000 unidades/dia (cada busca custa 100, ~100 buscas/dia de graça — suficiente pra uso pessoal).
-2. Crie o arquivo de cookies (usado pelo `yt-dlp`; o `docker-compose.yml` sempre monta `./cookies.txt` no container em leitura e escrita, então o arquivo precisa existir mesmo que vazio — e precisa ser gravável pelo container, cujo usuário roda com uid 1000, que raramente é o mesmo uid do seu usuário no host):
-
-   ```bash
-   touch cookies.txt
-   chmod 666 cookies.txt
-   ```
-
-   Se o YouTube começar a bloquear o bot (erro `429 Too Many Requests` / `Sign in to confirm you're not a bot`), preencha esse arquivo com cookies de uma conta Google logada, exportados no formato Netscape usando uma extensão como [Get cookies.txt LOCALLY](https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc) (Chrome/Firefox) direto de `youtube.com`. Reinicie os containers (`docker compose restart bot worker`) depois de atualizar o arquivo.
-
-3. Suba tudo:
+1. Copie `.env.example` para `.env` e preencha `DISCORD_BOT_TOKEN` / `DISCORD_BOT_CLIENT_ID`, criados em https://discord.com/developers/applications.
+2. Suba tudo:
 
    ```bash
    docker compose up --build
    ```
 
-   Isso inicia três serviços: `redis` (fila/estado), `bot` (conexão com o Discord) e `worker` (Sidekiq, processa playlists do Spotify em background).
-
-4. Convide o bot pro seu servidor usando o comando `$convite` (ou monte o link manualmente com o `DISCORD_BOT_CLIENT_ID`).
+3. Convide o bot pro seu servidor usando o comando `$convite` (ou monte o link manualmente com o `DISCORD_BOT_CLIENT_ID`).
 
 ## Rodando sem Docker
 
-Requer Ruby 3.4.1 (ver `.ruby-version`), Redis rodando localmente, e os binários `ffmpeg` e `yt-dlp` no PATH.
+Requer Ruby 3.4.1 (ver `.ruby-version`).
 
 ```bash
 bundle install
-bin/bot      # processo do bot (conecta no Discord)
-bin/worker   # processo do Sidekiq, em outro terminal
+bin/bot
 ```
-
-Se precisar de cookies pro `yt-dlp` (ver passo 2 da seção com Docker), aponte a env var `YTDLP_COOKIES_FILE` pro caminho do arquivo antes de rodar — não precisa existir se não for usar.
 
 ## Notificações do Seerr (pedido aprovado / disponível)
 
@@ -60,15 +43,6 @@ O bot pode mandar uma DM pro usuário do Discord que fez o pedido no [Seerr](htt
 
 ## Comandos
 
-- `$toca <nome ou link>`: toca uma música (aceita nome pra buscar no YouTube, link do YouTube, ou link de faixa/álbum/playlist do Spotify).
-- `$toca`: retoma a música pausada ou a próxima da fila.
-- `$pausa_pofavo`: pausa a música atual.
-- `$para_de_toca`: para de tocar e limpa a fila.
-- `$pula`: pula a música atual.
-- `$fila`: mostra a fila de músicas.
-- `$mistura`: embaralha a fila.
-- `$limpa_fila`: limpa a fila sem parar a música atual.
-- `$sai_daqui`: o bot sai do canal de voz.
 - `$convite`: link de convite do bot.
 - `$ajuda`: lista de comandos.
 
